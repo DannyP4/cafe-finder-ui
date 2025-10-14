@@ -193,8 +193,48 @@ function searchCoffeeShops() {
             nearbyContainer.innerHTML = '<p style="text-align:center; color: var(--text-light);">検索結果が見つかりませんでした。</p>';
         } else {
             nearbyContainer.innerHTML = filtered.map(shop => createShopCard(shop)).join('');
+            // Hiển thị thông báo tìm kiếm/lọc thành công
+            showSearchNotification(filtered.length, searchTerm, ratingFilter, distanceFilter);
         }
     }
+}
+
+function showSearchNotification(count, searchTerm, ratingFilter, distanceFilter) {
+    const oldNotification = document.querySelector('.search-notification');
+    if (oldNotification) {
+        oldNotification.remove();
+    }
+
+    // 操作タイプを判定
+    const hasSearch = searchTerm && searchTerm.trim() !== '';
+    const hasFilter = ratingFilter || distanceFilter;
+    
+    let message = '';
+    if (hasSearch && hasFilter) {
+        message = `検索とフィルター完了！${count}件のカフェが見つかりました。`;
+    } else if (hasSearch) {
+        message = `検索完了！${count}件のカフェが見つかりました。`;
+    } else if (hasFilter) {
+        message = `フィルター完了！${count}件のカフェが見つかりました。`;
+    } else {
+        message = `${count}件のカフェを表示中。`;
+    }
+
+    const notification = document.createElement('div');
+    notification.className = 'search-notification';
+    notification.innerHTML = `
+        <i class="fas fa-check-circle"></i>
+        <span>${message}</span>
+    `;
+    
+    document.body.appendChild(notification);
+
+    setTimeout(() => {
+        notification.classList.add('hide');
+        setTimeout(() => {
+            notification.remove();
+        }, 300);
+    }, 3000);
 }
 
 // 詳細ページへ遷移
@@ -261,11 +301,63 @@ function displayShopDetail() {
                         </div>
                     `;
                 }).join('')}
+                
+                <!-- レビュー投稿フォーム -->
+                <div class="review-form-container">
+                    <h3>✍️ レビューを投稿する</h3>
+                    <form class="review-form" id="reviewForm" onsubmit="submitReview(event, ${shop.id})">
+                        <div class="form-group">
+                            <label for="reviewAuthor">お名前 <span class="required">*</span></label>
+                            <input type="text" id="reviewAuthor" name="reviewAuthor" required placeholder="山田太郎">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="reviewRating">評価 <span class="required">*</span></label>
+                            <div class="star-rating" id="starRating">
+                                <span class="star" data-rating="1">☆</span>
+                                <span class="star" data-rating="2">☆</span>
+                                <span class="star" data-rating="3">☆</span>
+                                <span class="star" data-rating="4">☆</span>
+                                <span class="star" data-rating="5">☆</span>
+                            </div>
+                            <input type="hidden" id="reviewRating" name="reviewRating" required>
+                            <small class="rating-text">クリックして評価してください</small>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="reviewText">レビュー内容 <span class="required">*</span></label>
+                            <textarea id="reviewText" name="reviewText" required rows="4" placeholder="こちらのカフェについてのご感想をお聞かせください..."></textarea>
+                            <small class="char-count"><span id="charCount">0</span>/500文字</small>
+                        </div>
+                        
+                        <button type="submit" class="submit-review-btn">
+                            <i class="fas fa-paper-plane"></i> レビューを投稿
+                        </button>
+                    </form>
+                </div>
             </div>
 
             <a href="map.html?id=${shop.id}" class="map-button">🗺️ 地図で見る</a>
         </div>
     `;
+    
+    // 星評価の初期化
+    initializeStarRating();
+    
+    // 文字数カウンターの初期化
+    const reviewTextArea = document.getElementById('reviewText');
+    if (reviewTextArea) {
+        reviewTextArea.addEventListener('input', function() {
+            const charCount = document.getElementById('charCount');
+            const count = this.value.length;
+            charCount.textContent = count;
+            
+            if (count > 500) {
+                this.value = this.value.substring(0, 500);
+                charCount.textContent = '500';
+            }
+        });
+    }
 }
 
 // 地図ページ: 地図を初期化
@@ -546,4 +638,127 @@ function clearErrors() {
         error.textContent = '';
         error.style.display = 'none';
     });
+}
+
+// レビュー投稿機能
+function initializeStarRating() {
+    const stars = document.querySelectorAll('.star');
+    const ratingInput = document.getElementById('reviewRating');
+    let selectedRating = 0;
+    
+    stars.forEach(star => {
+        // ホバー効果
+        star.addEventListener('mouseenter', function() {
+            const rating = parseInt(this.getAttribute('data-rating'));
+            highlightStars(rating);
+        });
+        
+        // クリック
+        star.addEventListener('click', function() {
+            selectedRating = parseInt(this.getAttribute('data-rating'));
+            ratingInput.value = selectedRating;
+            highlightStars(selectedRating);
+            
+            // 評価テキストを更新
+            const ratingText = document.querySelector('.rating-text');
+            const ratingLabels = ['', 'とても悪い', '悪い', '普通', '良い', 'とても良い'];
+            ratingText.textContent = `${selectedRating}つ星 - ${ratingLabels[selectedRating]}`;
+            ratingText.style.color = 'var(--primary-color)';
+        });
+    });
+    
+    // マウスアウト時に選択した評価に戻す
+    const starRating = document.getElementById('starRating');
+    if (starRating) {
+        starRating.addEventListener('mouseleave', function() {
+            highlightStars(selectedRating);
+        });
+    }
+    
+    function highlightStars(rating) {
+        stars.forEach(star => {
+            const starRating = parseInt(star.getAttribute('data-rating'));
+            if (starRating <= rating) {
+                star.textContent = '★';
+                star.style.color = '#FFD700';
+            } else {
+                star.textContent = '☆';
+                star.style.color = '#DDD';
+            }
+        });
+    }
+}
+
+function submitReview(event, shopId) {
+    event.preventDefault();
+    
+    const author = document.getElementById('reviewAuthor').value;
+    const rating = parseFloat(document.getElementById('reviewRating').value);
+    const text = document.getElementById('reviewText').value;
+    
+    if (!rating) {
+        alert('評価を選択してください');
+        return;
+    }
+    
+    // 新しいレビューを作成
+    const newReview = {
+        author: author,
+        rating: rating,
+        text: text,
+        date: new Date().toISOString()
+    };
+    
+    // カフェのレビューに追加
+    const shop = coffeeShops.find(s => s.id === shopId);
+    if (shop) {
+        shop.reviews.unshift(newReview);
+        
+        // 成功メッセージを表示
+        showReviewSuccessNotification();
+        
+        // フォームをリセット
+        document.getElementById('reviewForm').reset();
+        document.getElementById('charCount').textContent = '0';
+        
+        // 星をリセット
+        const stars = document.querySelectorAll('.star');
+        stars.forEach(star => {
+            star.textContent = '☆';
+            star.style.color = '#DDD';
+        });
+        
+        // 評価テキストをリセット
+        const ratingText = document.querySelector('.rating-text');
+        ratingText.textContent = 'クリックして評価してください';
+        ratingText.style.color = '';
+        
+        // ページを再読み込みしてレビューを表示
+        setTimeout(() => {
+            displayShopDetail();
+        }, 1500);
+    }
+}
+
+function showReviewSuccessNotification() {
+    const oldNotification = document.querySelector('.search-notification');
+    if (oldNotification) {
+        oldNotification.remove();
+    }
+
+    const notification = document.createElement('div');
+    notification.className = 'search-notification';
+    notification.innerHTML = `
+        <i class="fas fa-check-circle"></i>
+        <span>レビューを投稿しました！ありがとうございます。</span>
+    `;
+    
+    document.body.appendChild(notification);
+
+    setTimeout(() => {
+        notification.classList.add('hide');
+        setTimeout(() => {
+            notification.remove();
+        }, 300);
+    }, 3000);
 }
