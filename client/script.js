@@ -586,6 +586,69 @@ function handleLogout() {
     }
 }
 
+// パスワードを忘れた場合の処理
+function handleForgotPassword() {
+    const email = prompt('登録されているメールアドレスを入力してください：');
+    
+    if (!email) {
+        return; // キャンセルされた場合
+    }
+    
+    if (!validateEmail(email)) {
+        alert('有効なメールアドレスを入力してください');
+        return;
+    }
+    
+    // ユーザーの存在確認
+    const users = JSON.parse(localStorage.getItem('users') || '[]');
+    const user = users.find(u => u.email === email);
+    
+    if (user) {
+        // プロトタイプモード: 実際にはメールを送信せず、メッセージのみ表示
+        alert(`パスワードリセットのリンクを ${email} に送信しました。\n\n（プロトタイプモード：実際のメールは送信されません）`);
+        console.log('Password reset requested for:', email);
+    } else {
+        alert('このメールアドレスは登録されていません');
+    }
+}
+
+// パスワードリセットフォームの送信処理
+function handleForgotPasswordSubmit(event) {
+    event.preventDefault();
+    
+    const email = document.getElementById('email').value;
+    const emailError = document.getElementById('emailError');
+    const successMessage = document.getElementById('successMessage');
+    
+    // エラーをクリア
+    emailError.textContent = '';
+    successMessage.style.display = 'none';
+    
+    // バリデーション
+    if (!validateEmail(email)) {
+        emailError.textContent = '有効なメールアドレスを入力してください';
+        return;
+    }
+    
+    // プロトタイプモード: UI表示のみ
+    successMessage.innerHTML = `
+        <i class="fas fa-check-circle"></i> 
+        パスワードリセットのリンクを <strong>${email}</strong> に送信しました。<br>
+        メールをご確認ください。
+    `;
+    successMessage.style.display = 'block';
+    
+    // フォームをリセット
+    document.getElementById('forgotPasswordForm').reset();
+    
+    console.log('Password reset link sent to:', email);
+    
+    // 3秒後にログインページに戻る
+    setTimeout(() => {
+        window.location.href = 'login.html';
+    }, 3000);
+}
+
 // アカウント削除
 function handleDeleteAccount() {
     if (confirm('本当にアカウントを削除しますか？この操作は取り消せません。')) {
