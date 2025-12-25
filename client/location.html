@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>位置情報入力 - コーヒーファインダー</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <style>
+      /* Modal Styles */
+      .modal-overlay {
+        display: flex;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+        z-index: 2000;
+        align-items: center;
+        justify-content: center;
+        animation: fadeIn 0.3s ease;
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+        }
+        to {
+          opacity: 1;
+        }
+      }
+
+      .modal-content {
+        background-color: var(--bg-white);
+        border-radius: 12px;
+        padding: 2.5rem;
+        max-width: 600px;
+        width: 90%;
+        box-shadow: var(--shadow-lg);
+        animation: slideUp 0.3s ease;
+        position: relative;
+      }
+
+      @keyframes slideUp {
+        from {
+          transform: translateY(30px);
+          opacity: 0;
+        }
+        to {
+          transform: translateY(0);
+          opacity: 1;
+        }
+      }
+
+      .modal-header {
+        margin-bottom: 1.5rem;
+      }
+
+      .modal-header h2 {
+        font-size: 1.8rem;
+        color: var(--primary-color);
+        margin-bottom: 0.5rem;
+      }
+
+      .modal-header p {
+        color: var(--text-light);
+        font-size: 0.95rem;
+      }
+
+      .location-input-wrapper {
+        position: relative;
+        margin-bottom: 1rem;
+      }
+
+      .location-input {
+        width: 100%;
+        padding: 1rem 1.5rem;
+        padding-left: 3rem;
+        border: 2px solid var(--border-color);
+        border-radius: 8px;
+        font-size: 1rem;
+        transition: border-color 0.3s;
+      }
+
+      .location-input:focus {
+        outline: none;
+        border-color: var(--primary-color);
+      }
+
+      .location-input-icon {
+        position: absolute;
+        left: 1rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--text-light);
+        font-size: 1.2rem;
+      }
+
+      .suggestions-list {
+        background-color: var(--bg-white);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        max-height: 250px;
+        overflow-y: auto;
+        margin-top: 0.5rem;
+        box-shadow: var(--shadow);
+        display: none;
+      }
+
+      .suggestions-list.show {
+        display: block;
+      }
+
+      .suggestion-item {
+        padding: 1rem 1.5rem;
+        padding-left: 3rem;
+        cursor: pointer;
+        transition: background-color 0.2s;
+        border-bottom: 1px solid var(--border-color);
+        position: relative;
+      }
+
+      .suggestion-item:last-child {
+        border-bottom: none;
+      }
+
+      .suggestion-item:hover {
+        background-color: var(--bg-light);
+      }
+
+      .suggestion-item.active {
+        background-color: var(--secondary-color);
+        color: var(--bg-white);
+      }
+
+      .suggestion-icon {
+        position: absolute;
+        left: 1rem;
+        color: var(--text-light);
+      }
+
+      .suggestion-item.active .suggestion-icon {
+        color: var(--bg-white);
+      }
+
+      .suggestion-name {
+        font-weight: 500;
+        margin-bottom: 0.25rem;
+      }
+
+      .suggestion-address {
+        font-size: 0.85rem;
+        color: var(--text-light);
+      }
+
+      .suggestion-item.active .suggestion-address {
+        color: rgba(255, 255, 255, 0.9);
+      }
+
+      .modal-actions {
+        display: flex;
+        gap: 1rem;
+        margin-top: 2rem;
+        justify-content: space-between;
+      }
+
+      .btn {
+        padding: 0.75rem 2rem;
+        border: none;
+        border-radius: 6px;
+        font-size: 1rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.3s;
+        flex: 1;
+      }
+
+      .btn-primary {
+        background-color: var(--primary-color);
+        color: var(--bg-white);
+      }
+
+      .btn-primary:hover {
+        background-color: var(--secondary-color);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow);
+      }
+
+      .btn-secondary {
+        background-color: transparent;
+        color: var(--text-dark);
+        border: 2px solid var(--border-color);
+      }
+
+      .btn-secondary:hover {
+        border-color: var(--text-light);
+        background-color: var(--bg-light);
+      }
+
+      .btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      .selected-location {
+        margin-top: 1rem;
+        padding: 1rem;
+        background-color: var(--bg-light);
+        border-radius: 6px;
+        display: none;
+      }
+
+      .selected-location.show {
+        display: block;
+      }
+
+      .selected-location-label {
+        font-size: 0.85rem;
+        color: var(--text-light);
+        margin-bottom: 0.5rem;
+      }
+
+      .selected-location-value {
+        font-weight: 500;
+        color: var(--primary-color);
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Modal Overlay -->
+    <div class="modal-overlay" id="locationModal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>📍 位置情報を入力</h2>
+          <p>あなたの現在地を入力して、近くのカフェを見つけましょう</p>
+        </div>
+
+        <div class="location-input-wrapper">
+          <i class="fas fa-map-marker-alt location-input-icon"></i>
+          <input
+            type="text"
+            id="locationInput"
+            class="location-input"
+            placeholder="住所、駅名、または地名を入力..."
+            autocomplete="off"
+          />
+        </div>
+
+        <!-- Suggestions Dropdown -->
+        <div class="suggestions-list" id="suggestionsList">
+          <!-- Suggestions will be populated here -->
+        </div>
+
+        <!-- Selected Location Display -->
+        <div class="selected-location" id="selectedLocation">
+          <div class="selected-location-label">選択された位置:</div>
+          <div class="selected-location-value" id="selectedLocationValue"></div>
+        </div>
+
+        <div class="modal-actions">
+          <button class="btn btn-secondary" onclick="closeModal()">
+            キャンセル
+          </button>
+          <button
+            class="btn btn-primary"
+            id="confirmBtn"
+            onclick="confirmLocation()"
+            disabled
+          >
+            確認
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // Mock location suggestions data
+      const mockSuggestions = [
+        {
+          name: "渋谷駅",
+          address: "東京都渋谷区渋谷1-1-1",
+          lat: 35.6595,
+          lng: 139.7004,
+        },
+        {
+          name: "新宿駅",
+          address: "東京都新宿区新宿3-38-1",
+          lat: 35.6897,
+          lng: 139.7008,
+        },
+        {
+          name: "東京駅",
+          address: "東京都千代田区丸の内1-9-1",
+          lat: 35.6812,
+          lng: 139.7671,
+        },
+        {
+          name: "池袋駅",
+          address: "東京都豊島区南池袋1-28-1",
+          lat: 35.7295,
+          lng: 139.7109,
+        },
+        {
+          name: "上野駅",
+          address: "東京都台東区上野7-1-1",
+          lat: 35.7138,
+          lng: 139.7773,
+        },
+        {
+          name: "渋谷区役所",
+          address: "東京都渋谷区渋谷1-18-21",
+          lat: 35.658,
+          lng: 139.7016,
+        },
+        {
+          name: "原宿駅",
+          address: "東京都渋谷区神宮前1-18-21",
+          lat: 35.6702,
+          lng: 139.7026,
+        },
+        {
+          name: "表参道駅",
+          address: "東京都渋谷区神宮前4-12-10",
+          lat: 35.6652,
+          lng: 139.7126,
+        },
+      ];
+
+      let selectedLocation = null;
+      let currentSuggestions = [];
+
+      const locationInput = document.getElementById("locationInput");
+      const suggestionsList = document.getElementById("suggestionsList");
+      const confirmBtn = document.getElementById("confirmBtn");
+      const selectedLocationDiv = document.getElementById("selectedLocation");
+      const selectedLocationValue = document.getElementById(
+        "selectedLocationValue"
+      );
+
+      // Show suggestions when user types
+      locationInput.addEventListener("input", function (e) {
+        const query = e.target.value.trim().toLowerCase();
+
+        if (query.length === 0) {
+          suggestionsList.classList.remove("show");
+          selectedLocationDiv.classList.remove("show");
+          selectedLocation = null;
+          confirmBtn.disabled = true;
+          return;
+        }
+
+        // Filter suggestions based on input
+        currentSuggestions = mockSuggestions.filter(
+          (item) =>
+            item.name.toLowerCase().includes(query) ||
+            item.address.toLowerCase().includes(query)
+        );
+
+        displaySuggestions(currentSuggestions);
+      });
+
+      // Display suggestions
+      function displaySuggestions(suggestions) {
+        if (suggestions.length === 0) {
+          suggestionsList.classList.remove("show");
+          return;
+        }
+
+        suggestionsList.innerHTML = "";
+        suggestions.forEach((suggestion, index) => {
+          const item = document.createElement("div");
+          item.className = "suggestion-item";
+          item.innerHTML = `
+                    <i class="fas fa-map-marker-alt suggestion-icon"></i>
+                    <div class="suggestion-name">${suggestion.name}</div>
+                    <div class="suggestion-address">${suggestion.address}</div>
+                `;
+
+          item.addEventListener("click", () => selectLocation(suggestion));
+          item.addEventListener("mouseenter", () => {
+            document
+              .querySelectorAll(".suggestion-item")
+              .forEach((i) => i.classList.remove("active"));
+            item.classList.add("active");
+          });
+
+          suggestionsList.appendChild(item);
+        });
+
+        suggestionsList.classList.add("show");
+      }
+
+      // Select a location from suggestions
+      function selectLocation(location) {
+        selectedLocation = location;
+        locationInput.value = location.name;
+        selectedLocationValue.textContent = `${location.name} - ${location.address}`;
+        selectedLocationDiv.classList.add("show");
+        suggestionsList.classList.remove("show");
+        confirmBtn.disabled = false;
+      }
+
+      // Confirm location
+      function confirmLocation() {
+        if (!selectedLocation) {
+          alert("位置を選択してください");
+          return;
+        }
+
+        // In a real app, this would send the location to the server
+        // and calculate distances to coffee shops
+        console.log("Selected location:", selectedLocation);
+
+        // Show confirmation message
+        alert(
+          `位置情報が確認されました: ${selectedLocation.name}\n\n近くのカフェを検索しています...`
+        );
+
+        // Close modal (in real app, this would navigate to home page with location set)
+        closeModal();
+      }
+
+      // Close modal
+      function closeModal() {
+        const modal = document.getElementById("locationModal");
+        modal.style.animation = "fadeOut 0.3s ease";
+        setTimeout(() => {
+          modal.style.display = "none";
+        }, 300);
+      }
+
+      // Close modal when clicking outside
+      document
+        .getElementById("locationModal")
+        .addEventListener("click", function (e) {
+          if (e.target === this) {
+            closeModal();
+          }
+        });
+
+      // Keyboard navigation
+      locationInput.addEventListener("keydown", function (e) {
+        const items = suggestionsList.querySelectorAll(".suggestion-item");
+        const activeItem = suggestionsList.querySelector(
+          ".suggestion-item.active"
+        );
+
+        if (e.key === "ArrowDown") {
+          e.preventDefault();
+          if (activeItem) {
+            const next = activeItem.nextElementSibling;
+            if (next) {
+              activeItem.classList.remove("active");
+              next.classList.add("active");
+              next.scrollIntoView({ block: "nearest" });
+            }
+          } else if (items.length > 0) {
+            items[0].classList.add("active");
+          }
+        } else if (e.key === "ArrowUp") {
+          e.preventDefault();
+          if (activeItem) {
+            const prev = activeItem.previousElementSibling;
+            if (prev) {
+              activeItem.classList.remove("active");
+              prev.classList.add("active");
+              prev.scrollIntoView({ block: "nearest" });
+            }
+          }
+        } else if (e.key === "Enter" && activeItem) {
+          e.preventDefault();
+          const index = Array.from(items).indexOf(activeItem);
+          selectLocation(currentSuggestions[index]);
+        } else if (e.key === "Escape") {
+          suggestionsList.classList.remove("show");
+        }
+      });
+
+      // Add fadeOut animation
+      const style = document.createElement("style");
+      style.textContent = `
+            @keyframes fadeOut {
+                from { opacity: 1; }
+                to { opacity: 0; }
+            }
+        `;
+      document.head.appendChild(style);
+    </script>
+  </body>
+</html>
